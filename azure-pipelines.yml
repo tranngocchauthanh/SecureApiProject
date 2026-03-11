@@ -1,0 +1,39 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  buildConfiguration: 'Release'
+
+steps:
+# Bước 1: Cài .NET SDK
+- task: UseDotNet@2
+  displayName: 'Cài .NET SDK'
+  inputs:
+    packageType: 'sdk'
+    version: '8.x'          # Đổi thành 6.x hoặc 7.x nếu project dùng version khác
+
+# Bước 2: Restore các package NuGet
+- task: DotNetCoreCLI@2
+  displayName: 'Restore NuGet packages'
+  inputs:
+    command: 'restore'
+    projects: '**/*.csproj'
+
+# Bước 3: Build project
+- task: DotNetCoreCLI@2
+  displayName: 'Build'
+  inputs:
+    command: 'build'
+    projects: '**/*.csproj'
+    arguments: '--configuration $(buildConfiguration) --no-restore'
+
+# Bước 4: Chạy Unit Tests
+- task: DotNetCoreCLI@2
+  displayName: 'Run Tests'
+  inputs:
+    command: 'test'
+    projects: '**/*Tests.csproj'   # Tự động tìm file test project
+    arguments: '--configuration $(buildConfiguration) --no-build'
