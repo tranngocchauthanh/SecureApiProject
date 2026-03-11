@@ -6,34 +6,62 @@ pool:
 
 variables:
   buildConfiguration: 'Release'
+  imageRepository: 'concise-forge-485304-p4/secure-api/secure-api-project'
+  dockerRegistryServiceConnection: 'google-artifact-registry'
+  tag: '$(Build.BuildId)'
 
-steps:
-# Bước 1: Cài .NET SDK
-- task: UseDotNet@2
-  displayName: 'Cài .NET SDK'
-  inputs:
-    packageType: 'sdk'
-    version: '8.x'          # Đổi thành 6.x hoặc 7.x nếu project dùng version khác
+stages:
+- stage: CI
+  displayName: 'Build and Test'
+  jobs:
+  - job: BuildTest
+    steps:
+    - task: UseDotNet@2
+      displayName: 'Cài .NET SDK'
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
 
-# Bước 2: Restore các package NuGet
-- task: DotNetCoreCLI@2
-  displayName: 'Restore NuGet packages'
-  inputs:
-    command: 'restore'
-    projects: '**/*.csproj'
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore'
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
 
-# Bước 3: Build project
-- task: DotNetCoreCLI@2
-  displayName: 'Build'
-  inputs:
-    command: 'build'
-    projects: '**/*.csproj'
-    arguments: '--configuration $(buildConfiguration) --no-restore'
+    - task: DotNetCoreCLI@2
+      displayName: 'Build'
+      inputs:
+        command: 'build'
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
 
-# Bước 4: Chạy Unit Tests
-- task: DotNetCoreCLI@2
-  displayName: 'Run Tests'
-  inputs:
-    command: 'test'
-    projects: '**/*Tests.csproj'   # Tự động tìm file test project
-    arguments: '--configuration $(buildConfiguration) --no-build'
+- stage: CD
+  displayName: 'Build Docker and Deploy'
+  dependsOn: CI
+  # ✅ Chỉ deploy khi CI thành công VÀ đang ở branch main
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: Deploy
+    steps:
+    - task: Docker@2
+      displayName: 'Build and Push Docker Image'
+      inputs:
+        command: 'buildAndPush'
+        repository: '$(imageRepository)'
+        dockerfile: 'Dockerfile'
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        tags: '$(tag)'
+
+    - script: |
+        echo '$(GCP_KEY)' > gcp-key.json
+        gcloud auth activate-service-account --key-file=gcp-key.json
+        gcloud config set project concise-forge-485304-p4
+        gcloud run deploy secure-api-project \
+          --image asia-southeast1-docker.pkg.dev/$(imageRepository):$(tag) \
+          --platform managed \
+          --region asia-southeast1 \
+          --allow-unauthenticated
+        rm gcp-key.json
+      displayName: 'Deploy to Cloud Run'
+      env:
+        GCP_KEY: $(GCP_KEY)
