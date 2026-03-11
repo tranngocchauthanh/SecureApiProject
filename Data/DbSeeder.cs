@@ -33,7 +33,8 @@ public static class DbSeeder
         context.Products.AddRange(
             new Product { Id = 1, Name = "Laptop Pro", Description = "High-performance laptop", Price = 1299.99m, Stock = 50, CreatedBy = "admin" },
             new Product { Id = 2, Name = "Wireless Mouse", Description = "Ergonomic wireless mouse", Price = 29.99m, Stock = 200, CreatedBy = "admin" },
-            new Product { Id = 3, Name = "Mechanical Keyboard", Description = "RGB mechanical keyboard", Price = 89.99m, Stock = 100, CreatedBy = "admin" }
+            new Product { Id = 3, Name = "Mechanical Keyboard", Description = "RGB mechanical keyboard", Price = 89.99m, Stock = 100, CreatedBy = "admin" },
+            new Product { Id = 4, Name = "Macbook Pro", Description = "Macbook Pro M5", Price = 1500.00m, Stock = 100, CreatedBy = "admin" }
         );
 
         context.SaveChanges();
